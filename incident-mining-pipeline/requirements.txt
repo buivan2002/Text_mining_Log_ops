@@ -9,4 +9,5 @@ qdrant-client
 transformers
 torch
 openai
+pysbd
 pytest

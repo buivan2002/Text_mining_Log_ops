@@ -1,0 +1,151 @@
+{
+  "incident_id": "INC-GH-013",
+  "title": "Cloudflare",
+  "source_url": "https://blog.cloudflare.com/cloudflare-outage-february-20-2026/",
+  "status": "ok",
+  "language": "en",
+  "truncated": true,
+  "cleaned_text": "Cloudflare outage on February 20, 2026 | Cloudflare Blog On February 20, 2026, at 17:48 UTC, Cloudflare experienced a service outage when a subset of customers who use Cloudflareâs Bring Your Own IP (BYOIP) service saw their routes to the Internet withdrawn via Border Gateway Protocol (BGP). The issue was not caused, directly or indirectly, by a cyberattack or malicious activity of any kind. This issue was caused by a change that Cloudflare made to how our network manages IP addresses onboarded through the BYOIP pipeline. This change caused Cloudflare to unintentionally withdraw customer prefixes. For some BYOIP customers, this resulted in their services and applications being unreachable from the Internet, causing timeouts and failures to connect across their Cloudflare deployments that used BYOIP. The website for Cloudflareâs recursive DNS resolver (1.1.1.1) saw 403 errors as well. The total duration of the incident was 6 hours and 7 minutes with most of that time spent restoring prefix configurations to their state prior to the change. Cloudflare engineers reverted the change and prefixes stopped being withdrawn when we began to observe failures. However, before engineers were able to revert the change, ~1,100 BYOIP prefixes were withdrawn from the Cloudflare network. Some customers were able to restore their own service by using the Cloudflare dashboard to re-advertise their IP addresses. We resolved the incident when we restored all prefix configurations. We are sorry for the impact to our customers. We let you down today. This post is an in-depth recounting of exactly what happened and which systems and processes failed. We will also outline the steps we are taking to prevent outages like this from happening again. How did the outage impact customers? This graph shows the amount of prefixes advertised by Cloudflare during the incident to a BGP neighbor, which correlates to impact as prefixes that werenât advertised were unreachable on the Internet: Out of the total 6,500 prefixes advertised to this peer, 4,306 of those were BYOIP prefixes. These BYOIP prefixes are advertised to every peer and represent all the BYOIP prefixes we advertise globally.Â During the incident, 1,100 prefixes out of the total 6,500 were withdrawn from 17:56 to 18:46 UTC. Out of the 4,306 total BYOIP prefixes, 25% of BYOIP prefixes were unintentionally withdrawn. We were able to detect impact on one.one.one.one and revert the impacting change before more prefixes were impacted. At 19:19 UTC, we published guidance to customers that they would be able to self-remediate this incident by going to the Cloudflare dashboard and re-advertising their prefixes. Cloudflare was able to revert many of the advertisement changes around 20:20 UTC, which caused 800 prefixes to be restored. There were still ~300 prefixes that were unable to be remediated through the dashboard because the service configurations for those prefixes were removed from the edge due to a software bug. These prefixes were manually restored by Cloudflare engineers at 23:03 UTC.Â This incident did not impact all BYOIP customers because the configuration change was applied iteratively and not instantaneously across all BYOIP customers. Once the configuration change was revealed to be causing impact, the change was reverted before all customers were affected.Â The impacted BYOIP customers first experienced a behavior called BGP Path Hunting . In this state, end user connections traverse networks trying to find a route to the destination IP. This behavior will persist until the connection that was opened times out and fails. Until the prefix is advertised somewhere, customers will continue to see this failure mode. This loop-until-failure scenario affected any product that uses BYOIP for advertisement to the Internet. Additionally, visitors to one.one.one.one, the website for Cloudflareâs recursive DNS resolver, were met with HTTP 403 errors and an âEdge IP Restrictedâ error message. DNS resolution over the 1.1.1.1 Public Resolver, including DNS over HTTPS, was not affected. A full breakdown of the services impacted is below. Service/Product Impact Description Core CDN and Security Services Traffic was not attracted to Cloudflare, and users connecting to websites advertised on those ranges would have seen failures to connect Spectrum Spectrum apps on BYOIP failed to proxy traffic due to traffic not being attracted to Cloudflare Dedicated Egress Customers who used Gateway Dedicated Egress leveraging BYOIP or Dedicated IPs for CDN Egress leveraging BYOIP would not have been able to send traffic out to their destinations Magic Transit End users connecting to applications protected by Magic Transit would not have been advertised on the Internet, and would have seen connection timeouts and failures There was also a set of customers who were unable to restore service by toggling the prefixes on the Cloudflare dashboard. As engineers began reannouncing prefixes to restore service for these customers, these customers may have seen increased latency and failures despite their IP addresses being advertised. This was because the addressing settings for some users were removed from edge servers due an issue in our own software, and the state had to be propagated back to the edge.Â Weâre going to get into what exactly broke in our addressing system, but to do that we need to cover a quick primer on the Addressing API, which is the underlying source of truth for customer IP addresses at Cloudflare. Cloudflareâs Addressing API The Addressing API is an authoritative dataset of the addresses present on the Cloudflare network. Any change to that dataset is immediately reflected in Cloudflare's global network. While we are in the process of improving how these systems roll out changes as a part of Code Orange: Fail Small , today customers can configure their IP addresses by interacting with public-facing APIs which configure a set of databases that trigger operational workflows propagating the changes to Cloudflareâs edge. This means that changes to the Addressing API are immediately propagated to the Cloudflare edge. Advertising and configuring IP addresses on Cloudflare involves several steps: Customers signal to Cloudflare about advertisement/withdrawal of IP addresses via the Addressing API or BGP Control The Addressing API instructs the machines to change the prefix advertisements BGP will be updated on the routers once enough machines have received the notification to update the prefix Finally, customers can configure Cloudflare products to use BYOIP addresses via service bindings which will assign products to these ranges The Addressing API allows us to automate most of the processes surrounding how we advertise or withdraw addresses, but some processes still require manual actions. These manual processes are risky because of their close proximity to Production. As a part of Code Orange: Fail Small , one of the goals of remediation was to remove manual actions taken in the Addressing API and replace them with safe workflows. How did the incident occur? The specific piece of configuration that broke was a modification attempting to automate the customer action of removing prefixes from Cloudflareâs BYOIP service, a regular customer request that is done manually today. Removing this manual process was part of our Code Orange: Fail Small work to push all changes toward safe, automated, health-mediated deployment. Since the list of related objects of BYOIP prefixes can be large, this was implemented as part of a regularly running sub-task that checks for BYOIP prefixes that should be removed, and then removes them. Unfortunately, this regular cleanup sub-task queried the API with a bug. Here is the API query from the cleanup sub-task: resp, err : = d. doRequest (ctx, http.MethodGet, `/v1/prefixes?pending_delete` , nil) And here is the relevant part of the API implementation: if v : = req. URL . Query (). Get ( \"pending_delete\" ); v != \"\" { // ignore other behavior and fetch pending objects from the ip_prefixes_deleted table prefixes, err : = c. RO (). IPPrefixes (). FetchPrefixesPendingDeletion (ctx) if err != nil { api. RenderError (ctx, w, ErrInternalError) return } api. Render (ctx, w, http.StatusOK, renderIPPrefixAPIResponse (prefixes, nil)) return } Because the client is passing pending_delete with no value, the result of Query().Get(âpending_deleteâ) here will be an empty string (ââ), so the API server interprets this as a request for all BYOIP prefixes instead of just those prefixes that were supposed to be removed. The system interpreted this as all returned prefixes being queued for deletion. The new sub-task then began systematically deleting all BYOIP prefixes and all of their related dependent objects including service bindings , until the impact was noticed, and an engineer identified the sub-task and shut it down. Why did Cloudflare not catch the bug in our staging environment or testing? Our staging environment contains data that matches Production as closely as possible, but was not sufficient in this case and the mock data we relied on to simulate what would occur was insufficient. In addition, while we have tests for this functionality, coverage for this scenario in our testing process and environment was incomplete. Initial testing and code review focused on the BYOIP self-service API journey and were completed successfully. While our engineers successfully tested the exact process a customer would have followed, testing did not cover a scenario where the task-runner service would independently execute changes to user data without explicit input. Why was recovery not immediate? Affected BYOIP prefixes were not all impacted in the same way, necessitating more intensive data recovery steps. As a part of Code Orange: Fail Small, we are building a system where operational state snapshots can be safely rolled out through health-mediate",
+  "log_fragments": [
+    {
+      "type": "http_status",
+      "text": "403",
+      "start": 897,
+      "end": 900
+    },
+    {
+      "type": "http_status",
+      "text": "100",
+      "start": 1249,
+      "end": 1252
+    },
+    {
+      "type": "http_status",
+      "text": "500",
+      "start": 2030,
+      "end": 2033
+    },
+    {
+      "type": "http_status",
+      "text": "306",
+      "start": 2070,
+      "end": 2073
+    },
+    {
+      "type": "http_status",
+      "text": "100",
+      "start": 2238,
+      "end": 2241
+    },
+    {
+      "type": "http_status",
+      "text": "500",
+      "start": 2270,
+      "end": 2273
+    },
+    {
+      "type": "http_status",
+      "text": "306",
+      "start": 2327,
+      "end": 2330
+    },
+    {
+      "type": "http_status",
+      "text": "300",
+      "start": 2843,
+      "end": 2846
+    },
+    {
+      "type": "http_status",
+      "text": "403",
+      "start": 3960,
+      "end": 3963
+    },
+    {
+      "type": "error_token",
+      "text": "RenderError",
+      "start": 8230,
+      "end": 8241
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "c0",
+      "text": "Cloudflare outage on February 20, 2026 | Cloudflare Blog On February 20, 2026, at 17:48 UTC, Cloudflare experienced a service outage when a subset of customers who use Cloudflareâs Bring Your Own IP (BYOIP) service saw their routes to the Internet withdrawn via Border Gateway Protocol (BGP). The issue was not caused, directly or indirectly, by a cyberattack or malicious activity of any kind. This issue was caused by a change that Cloudflare made to how our network manages IP addresses onboarded through the BYOIP pipeline. This change caused Cloudflare to unintentionally withdraw customer prefixes. For some BYOIP customers, this resulted in their services and applications being unreachable from the Internet, causing timeouts and failures to connect across their Cloudflare deployments that used BYOIP. The website for Cloudflareâs recursive DNS resolver (1.1.1.1) saw 403 errors as well. The total duration of the incident was 6 hours and 7 minutes with most of that time spent restoring prefix configurations to their state prior to the change. Cloudflare engineers reverted the change and prefixes stopped being withdrawn when we began to observe failures. ",
+      "char_start": 0,
+      "char_end": 1172
+    },
+    {
+      "chunk_id": "c1",
+      "text": "The total duration of the incident was 6 hours and 7 minutes with most of that time spent restoring prefix configurations to their state prior to the change. Cloudflare engineers reverted the change and prefixes stopped being withdrawn when we began to observe failures. However, before engineers were able to revert the change, ~1,100 BYOIP prefixes were withdrawn from the Cloudflare network. Some customers were able to restore their own service by using the Cloudflare dashboard to re-advertise their IP addresses. We resolved the incident when we restored all prefix configurations. We are sorry for the impact to our customers. We let you down today. This post is an in-depth recounting of exactly what happened and which systems and processes failed. We will also outline the steps we are taking to prevent outages like this from happening again. How did the outage impact customers? This graph shows the amount of prefixes advertised by Cloudflare during the incident to a BGP neighbor, which correlates to impact as prefixes that werenât advertised were unreachable on the Internet: Out of the total 6,500 prefixes advertised to this peer, 4,306 of those were BYOIP prefixes. ",
+      "char_start": 901,
+      "char_end": 2088
+    },
+    {
+      "chunk_id": "c2",
+      "text": "This graph shows the amount of prefixes advertised by Cloudflare during the incident to a BGP neighbor, which correlates to impact as prefixes that werenât advertised were unreachable on the Internet: Out of the total 6,500 prefixes advertised to this peer, 4,306 of those were BYOIP prefixes. These BYOIP prefixes are advertised to every peer and represent all the BYOIP prefixes we advertise globally.Â During the incident, 1,100 prefixes out of the total 6,500 were withdrawn from 17:56 to 18:46 UTC. Out of the 4,306 total BYOIP prefixes, 25% of BYOIP prefixes were unintentionally withdrawn. We were able to detect impact on one.one.one.one and revert the impacting change before more prefixes were impacted. At 19:19 UTC, we published guidance to customers that they would be able to self-remediate this incident by going to the Cloudflare dashboard and re-advertising their prefixes. Cloudflare was able to revert many of the advertisement changes around 20:20 UTC, which caused 800 prefixes to be restored. ",
+      "char_start": 1792,
+      "char_end": 2809
+    },
+    {
+      "chunk_id": "c3",
+      "text": "At 19:19 UTC, we published guidance to customers that they would be able to self-remediate this incident by going to the Cloudflare dashboard and re-advertising their prefixes. Cloudflare was able to revert many of the advertisement changes around 20:20 UTC, which caused 800 prefixes to be restored. There were still ~300 prefixes that were unable to be remediated through the dashboard because the service configurations for those prefixes were removed from the edge due to a software bug. These prefixes were manually restored by Cloudflare engineers at 23:03 UTC.Â This incident did not impact all BYOIP customers because the configuration change was applied iteratively and not instantaneously across all BYOIP customers. Once the configuration change was revealed to be causing impact, the change was reverted before all customers were affected.Â The impacted BYOIP customers first experienced a behavior called BGP Path Hunting . In this state, end user connections traverse networks trying to find a route to the destination IP. This behavior will persist until the connection that was opened times out and fails. ",
+      "char_start": 2508,
+      "char_end": 3630
+    },
+    {
+      "chunk_id": "c4",
+      "text": "In this state, end user connections traverse networks trying to find a route to the destination IP. This behavior will persist until the connection that was opened times out and fails. Until the prefix is advertised somewhere, customers will continue to see this failure mode. This loop-until-failure scenario affected any product that uses BYOIP for advertisement to the Internet. Additionally, visitors to one.one.one.one, the website for Cloudflareâs recursive DNS resolver, were met with HTTP 403 errors and an âEdge IP Restrictedâ error message. DNS resolution over the 1.1.1.1 Public Resolver, including DNS over HTTPS, was not affected. A full breakdown of the services impacted is below. ",
+      "char_start": 3445,
+      "char_end": 4147
+    },
+    {
+      "chunk_id": "c5",
+      "text": "Additionally, visitors to one.one.one.one, the website for Cloudflareâs recursive DNS resolver, were met with HTTP 403 errors and an âEdge IP Restrictedâ error message. DNS resolution over the 1.1.1.1 Public Resolver, including DNS over HTTPS, was not affected. A full breakdown of the services impacted is below. Service/Product Impact Description Core CDN and Security Services Traffic was not attracted to Cloudflare, and users connecting to websites advertised on those ranges would have seen failures to connect Spectrum Spectrum apps on BYOIP failed to proxy traffic due to traffic not being attracted to Cloudflare Dedicated Egress Customers who used Gateway Dedicated Egress leveraging BYOIP or Dedicated IPs for CDN Egress leveraging BYOIP would not have been able to send traffic out to their destinations Magic Transit End users connecting to applications protected by Magic Transit would not have been advertised on the Internet, and would have seen connection timeouts and failures There was also a set of customers who were unable to restore service by toggling the prefixes on the Cloudflare dashboard. ",
+      "char_start": 3827,
+      "char_end": 4951
+    },
+    {
+      "chunk_id": "c6",
+      "text": "Service/Product Impact Description Core CDN and Security Services Traffic was not attracted to Cloudflare, and users connecting to websites advertised on those ranges would have seen failures to connect Spectrum Spectrum apps on BYOIP failed to proxy traffic due to traffic not being attracted to Cloudflare Dedicated Egress Customers who used Gateway Dedicated Egress leveraging BYOIP or Dedicated IPs for CDN Egress leveraging BYOIP would not have been able to send traffic out to their destinations Magic Transit End users connecting to applications protected by Magic Transit would not have been advertised on the Internet, and would have seen connection timeouts and failures There was also a set of customers who were unable to restore service by toggling the prefixes on the Cloudflare dashboard. As engineers began reannouncing prefixes to restore service for these customers, these customers may have seen increased latency and failures despite their IP addresses being advertised. This was because the addressing settings for some users were removed from edge servers due an issue in our own software, and the state had to be propagated back to the edge.",
+      "char_start": 4147,
+      "char_end": 5311
+    },
+    {
+      "chunk_id": "c7",
+      "text": "This was because the addressing settings for some users were removed from edge servers due an issue in our own software, and the state had to be propagated back to the edge.Â Weâre going to get into what exactly broke in our addressing system, but to do that we need to cover a quick primer on the Addressing API, which is the underlying source of truth for customer IP addresses at Cloudflare. Cloudflareâs Addressing API The Addressing API is an authoritative dataset of the addresses present on the Cloudflare network. Any change to that dataset is immediately reflected in Cloudflare's global network. While we are in the process of improving how these systems roll out changes as a part of Code Orange: Fail Small , today customers can configure their IP addresses by interacting with public-facing APIs which configure a set of databases that trigger operational workflows propagating the changes to Cloudflareâs edge. This means that changes to the Addressing API are immediately propagated to the Cloudflare edge. ",
+      "char_start": 5138,
+      "char_end": 6166
+    },
+    {
+      "chunk_id": "c8",
+      "text": "While we are in the process of improving how these systems roll out changes as a part of Code Orange: Fail Small , today customers can configure their IP addresses by interacting with public-facing APIs which configure a set of databases that trigger operational workflows propagating the changes to Cloudflareâs edge. This means that changes to the Addressing API are immediately propagated to the Cloudflare edge. Advertising and configuring IP addresses on Cloudflare involves several steps: Customers signal to Cloudflare about advertisement/withdrawal of IP addresses via the Addressing API or BGP Control The Addressing API instructs the machines to change the prefix advertisements BGP will be updated on the routers once enough machines have received the notification to update the prefix Finally, customers can configure Cloudflare products to use BYOIP addresses via service bindings which will assign products to these ranges The Addressing API allows us to automate most of the processes surrounding how we advertise or withdraw addresses, but some processes still require manual actions. These manual processes are risky because of their close proximity to Production. ",
+      "char_start": 5748,
+      "char_end": 6932
+    },
+    {
+      "chunk_id": "c9",
+      "text": "Advertising and configuring IP addresses on Cloudflare involves several steps: Customers signal to Cloudflare about advertisement/withdrawal of IP addresses via the Addressing API or BGP Control The Addressing API instructs the machines to change the prefix advertisements BGP will be updated on the routers once enough machines have received the notification to update the prefix Finally, customers can configure Cloudflare products to use BYOIP addresses via service bindings which will assign products to these ranges The Addressing API allows us to automate most of the processes surrounding how we advertise or withdraw addresses, but some processes still require manual actions. These manual processes are risky because of their close proximity to Production. As a part of Code Orange: Fail Small , one of the goals of remediation was to remove manual actions taken in the Addressing API and replace them with safe workflows. How did the incident occur? The specific piece of configuration that broke was a modification attempting to automate the customer action of removing prefixes from Cloudflareâs BYOIP service, a regular customer request that is done manually today. ",
+      "char_start": 6166,
+      "char_end": 7347
+    },
+    {
+      "chunk_id": "c10",
+      "text": "The specific piece of configuration that broke was a modification attempting to automate the customer action of removing prefixes from Cloudflareâs BYOIP service, a regular customer request that is done manually today. Removing this manual process was part of our Code Orange: Fail Small work to push all changes toward safe, automated, health-mediated deployment. Since the list of related objects of BYOIP prefixes can be large, this was implemented as part of a regularly running sub-task that checks for BYOIP prefixes that should be removed, and then removes them. Unfortunately, this regular cleanup sub-task queried the API with a bug. Here is the API query from the cleanup sub-task: resp, err : = d. doRequest (ctx, http.MethodGet, `/v1/prefixes?pending_delete` , nil) And here is the relevant part of the API implementation: if v : = req. URL . Query (). Get ( \"pending_delete\" ); v != \"\" { // ignore other behavior and fetch pending objects from the ip_prefixes_deleted table prefixes, err : = c. RO (). IPPrefixes (). FetchPrefixesPendingDeletion (ctx) if err != nil { api. RenderError (ctx, w, ErrInternalError) return } api. ",
+      "char_start": 7126,
+      "char_end": 8267
+    },
+    {
+      "chunk_id": "c11",
+      "text": "= \"\" { // ignore other behavior and fetch pending objects from the ip_prefixes_deleted table prefixes, err : = c. RO (). IPPrefixes (). FetchPrefixesPendingDeletion (ctx) if err != nil { api. RenderError (ctx, w, ErrInternalError) return } api. Render (ctx, w, http.StatusOK, renderIPPrefixAPIResponse (prefixes, nil)) return } Because the client is passing pending_delete with no value, the result of Query().Get(âpending_deleteâ) here will be an empty string (ââ), so the API server interprets this as a request for all BYOIP prefixes instead of just those prefixes that were supposed to be removed. The system interpreted this as all returned prefixes being queued for deletion. The new sub-task then began systematically deleting all BYOIP prefixes and all of their related dependent objects including service bindings , until the impact was noticed, and an engineer identified the sub-task and shut it down. Why did Cloudflare not catch the bug in our staging environment or testing? Our staging environment contains data that matches Production as closely as possible, but was not sufficient in this case and the mock data we relied on to simulate what would occur was insufficient. ",
+      "char_start": 8022,
+      "char_end": 9219
+    },
+    {
+      "chunk_id": "c12",
+      "text": "Our staging environment contains data that matches Production as closely as possible, but was not sufficient in this case and the mock data we relied on to simulate what would occur was insufficient. In addition, while we have tests for this functionality, coverage for this scenario in our testing process and environment was incomplete. Initial testing and code review focused on the BYOIP self-service API journey and were completed successfully. While our engineers successfully tested the exact process a customer would have followed, testing did not cover a scenario where the task-runner service would independently execute changes to user data without explicit input. Why was recovery not immediate? Affected BYOIP prefixes were not all impacted in the same way, necessitating more intensive data recovery steps. As a part of Code Orange: Fail Small, we are building a system where operational state snapshots can be safely rolled out through health-mediate",
+      "char_start": 9019,
+      "char_end": 9984
+    }
+  ]
+}

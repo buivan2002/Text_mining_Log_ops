@@ -1,0 +1,29 @@
+{
+  "total": 30,
+  "valid": 28,
+  "skipped": [
+    "INC-GH-001",
+    "INC-GH-021"
+  ],
+  "language_distribution": {
+    "non-en": 1,
+    "en": 27
+  },
+  "truncated_ids": [
+    "INC-GH-007",
+    "INC-GH-009",
+    "INC-GH-010",
+    "INC-GH-011",
+    "INC-GH-013",
+    "INC-GH-014",
+    "INC-GH-015",
+    "INC-GH-016",
+    "INC-GH-017",
+    "INC-GH-019",
+    "INC-GH-020",
+    "INC-GH-022",
+    "INC-GH-025",
+    "INC-GH-026",
+    "INC-GH-029"
+  ]
+}

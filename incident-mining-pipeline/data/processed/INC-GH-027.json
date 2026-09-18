@@ -1,0 +1,43 @@
+{
+  "incident_id": "INC-GH-027",
+  "title": "GitHub",
+  "source_url": "https://github.blog/news-insights/company-news/github-availability-report-august-2024/",
+  "status": "ok",
+  "language": "en",
+  "truncated": false,
+  "cleaned_text": "GitHub Availability Report: August 2024 - The GitHub Blog Jakub Oleksy · @jakuboleksy September 11, 2024 | 2 minutes Share: In August, we experienced one incident that resulted in degraded performance across GitHub services. August 14 23:02 UTC (lasting 36 minutes) On August 14, between 23:02 and 23:38 UTC, all GitHub services on GitHub.com were inaccessible for all users. At 22:59 UTC, an erroneous configuration change rolled out to GitHub.com databases that impacted the ability of the database to respond to health check pings from the routing service. This led to these database hosts being considered unhealthy and the production read-only database endpoint became inaccessible. As a result, the application could no longer connect to critical data for read operations. This led to the widespread impact on GitHub.com starting at 23:02 UTC. There was no data loss or corruption during this incident. We mitigated the incident by reverting the configuration change and confirming restored connectivity to our databases. At 23:38 UTC, traffic resumed and all services recovered to full health. Out of an abundance of caution, we continued to monitor before resolving the incident at 00:30 UTC on August 15. To prevent recurrence we have implemented additional guardrails in our database change management process. We are also prioritizing several repair items, such as faster rollback functionality and more resilience to dependency failures. Given the severity of this incident, all repair items are being worked on at the highest priority. Please follow our status page for real-time updates on status changes and post-incident recaps. To learn more about what we’re working on, check out the GitHub Engineering Blog . Tags: GitHub Availability Report Written by GitHub Availability Report More on GitHub Availability Report GitHub availability report: August 2026 In August, we experienced five incidents that resulted in degraded performance across GitHub services. Jakub Oleksy GitHub availability report: July 2026 In July, we experienced eight incidents that resulted in degraded performance across GitHub services. Jakub Oleksy Related posts Company news GitHub availability report: August 2026 In August, we experienced five incidents that resulted in degraded performance across GitHub services. Company news The August 17 outage, and the work ahead An update on the August 17 outage and the steps we’re taking to improve reliability. Company news Your guide to GitHub Universe 2026 is here: The schedule just launched! The GitHub Universe session catalog is live. Explore interactive workshops, community talks, demos, and panels. Plus, register before August 19 to save $300. Explore more from GitHub Docs Everything you need to master GitHub, all in one place. Go to Docs GitHub Build what’s next on GitHub, the place for anyone from anywhere to build anything. Start building Customer stories Meet the companies and engineering teams that build with GitHub. Learn more GitHub Universe 2026 Join us October 28-29 in San Francisco or online for GitHub Universe, our flagship developer event uniting people, agents, and the world’s code. Register now We do newsletters, too Discover tips, technical guides, and best practices in our biweekly newsletter just for devs. Your email address * Your email address Subscribe Yes please, I’d like GitHub and affiliates to use my information for personalized communications, targeted advertising and campaign effectiveness. See the GitHub Privacy Statement for more details. Subscribe",
+  "log_fragments": [
+    {
+      "type": "http_status",
+      "text": "300",
+      "start": 2690,
+      "end": 2693
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "c0",
+      "text": "GitHub Availability Report: August 2024 - The GitHub Blog Jakub Oleksy · @jakuboleksy September 11, 2024 | 2 minutes Share: In August, we experienced one incident that resulted in degraded performance across GitHub services. August 14 23:02 UTC (lasting 36 minutes) On August 14, between 23:02 and 23:38 UTC, all GitHub services on GitHub.com were inaccessible for all users. At 22:59 UTC, an erroneous configuration change rolled out to GitHub.com databases that impacted the ability of the database to respond to health check pings from the routing service. This led to these database hosts being considered unhealthy and the production read-only database endpoint became inaccessible. As a result, the application could no longer connect to critical data for read operations. This led to the widespread impact on GitHub.com starting at 23:02 UTC. There was no data loss or corruption during this incident. We mitigated the incident by reverting the configuration change and confirming restored connectivity to our databases. At 23:38 UTC, traffic resumed and all services recovered to full health. ",
+      "char_start": 0,
+      "char_end": 1101
+    },
+    {
+      "chunk_id": "c1",
+      "text": "We mitigated the incident by reverting the configuration change and confirming restored connectivity to our databases. At 23:38 UTC, traffic resumed and all services recovered to full health. Out of an abundance of caution, we continued to monitor before resolving the incident at 00:30 UTC on August 15. To prevent recurrence we have implemented additional guardrails in our database change management process. We are also prioritizing several repair items, such as faster rollback functionality and more resilience to dependency failures. Given the severity of this incident, all repair items are being worked on at the highest priority. Please follow our status page for real-time updates on status changes and post-incident recaps. To learn more about what we’re working on, check out the GitHub Engineering Blog . Tags: GitHub Availability Report Written by GitHub Availability Report More on GitHub Availability Report GitHub availability report: August 2026 In August, we experienced five incidents that resulted in degraded performance across GitHub services. ",
+      "char_start": 909,
+      "char_end": 1977
+    },
+    {
+      "chunk_id": "c2",
+      "text": "Tags: GitHub Availability Report Written by GitHub Availability Report More on GitHub Availability Report GitHub availability report: August 2026 In August, we experienced five incidents that resulted in degraded performance across GitHub services. Jakub Oleksy GitHub availability report: July 2026 In July, we experienced eight incidents that resulted in degraded performance across GitHub services. Jakub Oleksy Related posts Company news GitHub availability report: August 2026 In August, we experienced five incidents that resulted in degraded performance across GitHub services. Company news The August 17 outage, and the work ahead An update on the August 17 outage and the steps we’re taking to improve reliability. Company news Your guide to GitHub Universe 2026 is here: The schedule just launched! The GitHub Universe session catalog is live. Explore interactive workshops, community talks, demos, and panels. Plus, register before August 19 to save $300. Explore more from GitHub Docs Everything you need to master GitHub, all in one place. Go to Docs GitHub Build what’s next on GitHub, the place for anyone from anywhere to build anything. ",
+      "char_start": 1728,
+      "char_end": 2882
+    },
+    {
+      "chunk_id": "c3",
+      "text": "Explore more from GitHub Docs Everything you need to master GitHub, all in one place. Go to Docs GitHub Build what’s next on GitHub, the place for anyone from anywhere to build anything. Start building Customer stories Meet the companies and engineering teams that build with GitHub. Learn more GitHub Universe 2026 Join us October 28-29 in San Francisco or online for GitHub Universe, our flagship developer event uniting people, agents, and the world’s code. Register now We do newsletters, too Discover tips, technical guides, and best practices in our biweekly newsletter just for devs. Your email address * Your email address Subscribe Yes please, I’d like GitHub and affiliates to use my information for personalized communications, targeted advertising and campaign effectiveness. See the GitHub Privacy Statement for more details. Subscribe",
+      "char_start": 2695,
+      "char_end": 3543
+    }
+  ]
+}

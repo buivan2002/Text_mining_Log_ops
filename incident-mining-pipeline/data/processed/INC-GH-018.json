@@ -1,0 +1,115 @@
+{
+  "incident_id": "INC-GH-018",
+  "title": "Cloudflare",
+  "source_url": "https://blog.cloudflare.com/deep-dive-into-cloudflares-sept-12-dashboard-and-api-outage/",
+  "status": "ok",
+  "language": "en",
+  "truncated": false,
+  "cleaned_text": "A deep dive into Cloudflareâs September 12, 2025 dashboard and API outage | Cloudflare Blog What Happened We had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.Â The incidentâs impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tenant Service API. The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array. Because this object was recreated on every state or prop change, React treated it as âalways new,â causing the useEffect to re-run each time. As a result, the API call executed many times during a single dashboard render instead of just once. This behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover. When the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic.Â Without Tenant Service, API request authorization can not be evaluated.Â When authorization evaluation fails, API requests return 5xx status codes. Weâre very sorry about the disruption.Â The rest of this blog goes into depth on what happened, and what steps we are taking to prevent it from happening again. Timeline Time (UTC) Description 2025-09-12 16:32 A new version of the Cloudflare Dashboard is released which contains a bug that will trigger many more calls to the /organizations endpoint, including retries in the event of failure. 2025-09-12 17:50 A new version of the Tenant API Service is deployed. 2025-09-12 17:57 The Tenant API Service becomes overwhelmed as new versions are deploying. Dashboard Availability begins to drop IMPACT START 2025-09-12 18:17 After providing more resources to the Tenant API Service, the Cloudflare API climbs to 98% availability, but the dashboard does not recover. IMPACT DECREASE 2025-09-12 18:58 In an attempt to restore dashboard availability, some erroring codepaths were removed and a new version of the Tenant Service is released. This was ultimately a bad change and causes API Impact again. IMPACT INCREASE 2025-09-12 19:01 In an effort to relieve traffic against the Tenant API Service, a temporary ratelimiting rule is published. 2025-09-12 19:12 The problematic changes to the Tenant API Service are reverted, and Dashboard Availability returns to 100%. IMPACT END Dashboard availability The Cloudflare dashboard was severely impacted throughout the full duration of the incident. API availability The Cloudflare API was severely impacted for two periods during the incident when the Tenant API Service was down. How we responded Our first goal in an incident is to restore service.Â Often that involves fixing the underlying issue directly, but not always.Â In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources.Â We installed a global rate limit on the Tenant Service to help regulate the load.Â The Tenant Service is a GoLang process that runs on Kubernetes in a subset of our datacenters.Â We increased the number of pods available as well to help improve throughput.Â While we did this, we had others on the team continue to investigate why we were seeing the unusually high usage.Â Ultimately, increasing the resources available to the tenant service helped with availability but was insufficient to restore normal service. After the Tenant Service began reporting healthy again and the API largely recovered, we still observed a considerable number of errors being reported from the service. We theorized that these were responsible for the ongoing Dashboard availability issues and made a patch to the service with the expectation that it would improve the API health and restore the dashboard to a healthy state. Ultimately this change degraded service further and was quickly reverted. The second outage can be seen in the graph above. Itâs painful to have an outage like this.Â That said, there were a few things that helped lessen the impact.Â Our automatic alerting service quickly identified the correct people to join the call and start working on remediation.Â Additionally, this was a failure in the control plane which has strict separation of concerns from the data plane.Â Thus, the outage did not affect services on Cloudflareâs network.Â The majority of users at Cloudflare were unaffected unless they were making configuration changes or using our dashboard. Going forward We believe itâs important to learn from our mistakes and this incident is an opportunity to make some improvements.Â Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better inform the team during future events. Reducing impact We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error.Â Weâve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it.Â Had it been in place, we would have automatically rolled back the second Tenant Service update limiting the second outage.Â This work had already been scheduled by the team and weâve increased the priority of the migration. When we restarted the Tenant Service, everyoneâs dashboard began to re-authenticate with the API.Â This caused the API to become unstable again causing issues with everyoneâs dashboard.Â This pattern is a common one often referred to as a Thundering Herd.Â Once a resource or service is made available, everyone tries to use it all at once. This is common, but was amplified by the bug in our dashboard logic. The fix for this behavior has already been released via a hotfix shortly after the impact was over.Â Weâll be introducing changes to the dashboard that include random delays to spread out retries and reduce contention as well.Â Finally, the Tenant Service was not allocated sufficient capacity to handle spikes in load like this. Weâve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits. Improving visibility We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests.Â Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the dashboard.Â We are adding changes to how we call our APIs from our dashboard to include additional information, including if the request is a retry or new request. Weâre very sorry about the disruption.Â We will continue to investigate this issue and make improvements to our systems and processes. Discuss Online Related tags Outage Post Mortem Follow on Social Media Cloudflare Tom Lianza Subscribe to receive notifications of new posts Email address Weâll never share your email address. Subscribe Thanks for subscribing! Check your inbox to confirm. Search is temporarily unavailable. Login opens in a new tab Dashboard opens in a new tab Contact Sales opens in a new tab Start Building opens in a new tab opens in a new tab opens in a new tab opens in a new tab All Categories AI Developers Radar Product News Security Policy & Legal Zero Trust Speed & Reliability Life at Cloudflare Partners English Switch Site Language English Deutsch EspaÃ±ol EspaÃ±ol (LatinoamÃ©rica) FranÃ§ais Italiano æ¥æ¬èa íêμ­ì ́ ç1é«ä ̧­æ ç®ä1⁄2ä ̧­æ PortuguÃas Ð ÑÑÑÐoÐ ̧Ð1 Bahasa Indonesia à ̧ à ̧2à ̧©à ̧2à1à ̧à ̧¢ Tiáo¿ng Viá»t Polski Ø§ÙØ1Ø±Ø ̈ÙØ© ×¢×× ̈××a Svenska Nederlands TÃ1⁄4rkÃ§e Light Dark",
+  "log_fragments": [
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 16:32",
+      "start": 1473,
+      "end": 1489
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 17:50",
+      "start": 1674,
+      "end": 1690
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 17:57",
+      "start": 1744,
+      "end": 1760
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 18:17",
+      "start": 1886,
+      "end": 1902
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 18:58",
+      "start": 2060,
+      "end": 2076
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 19:01",
+      "start": 2294,
+      "end": 2310
+    },
+    {
+      "type": "timestamp",
+      "text": "2025-09-12 19:12",
+      "start": 2419,
+      "end": 2435
+    },
+    {
+      "type": "http_status",
+      "text": "100",
+      "start": 2538,
+      "end": 2541
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "c0",
+      "text": "A deep dive into Cloudflareâs September 12, 2025 dashboard and API outage | Cloudflare Blog What Happened We had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.Â The incidentâs impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tenant Service API. The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array. Because this object was recreated on every state or prop change, React treated it as âalways new,â causing the useEffect to re-run each time. As a result, the API call executed many times during a single dashboard render instead of just once. This behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover. When the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic.Â Without Tenant Service, API request authorization can not be evaluated.",
+      "char_start": 0,
+      "char_end": 1185
+    },
+    {
+      "chunk_id": "c1",
+      "text": "When the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic.Â Without Tenant Service, API request authorization can not be evaluated.Â When authorization evaluation fails, API requests return 5xx status codes. Weâre very sorry about the disruption.Â The rest of this blog goes into depth on what happened, and what steps we are taking to prevent it from happening again. Timeline Time (UTC) Description 2025-09-12 16:32 A new version of the Cloudflare Dashboard is released which contains a bug that will trigger many more calls to the /organizations endpoint, including retries in the event of failure. 2025-09-12 17:50 A new version of the Tenant API Service is deployed. 2025-09-12 17:57 The Tenant API Service becomes overwhelmed as new versions are deploying. Dashboard Availability begins to drop IMPACT START 2025-09-12 18:17 After providing more resources to the Tenant API Service, the Cloudflare API climbs to 98% availability, but the dashboard does not recover. ",
+      "char_start": 950,
+      "char_end": 2028
+    },
+    {
+      "chunk_id": "c2",
+      "text": "Dashboard Availability begins to drop IMPACT START 2025-09-12 18:17 After providing more resources to the Tenant API Service, the Cloudflare API climbs to 98% availability, but the dashboard does not recover. IMPACT DECREASE 2025-09-12 18:58 In an attempt to restore dashboard availability, some erroring codepaths were removed and a new version of the Tenant Service is released. This was ultimately a bad change and causes API Impact again. IMPACT INCREASE 2025-09-12 19:01 In an effort to relieve traffic against the Tenant API Service, a temporary ratelimiting rule is published. 2025-09-12 19:12 The problematic changes to the Tenant API Service are reverted, and Dashboard Availability returns to 100%. IMPACT END Dashboard availability The Cloudflare dashboard was severely impacted throughout the full duration of the incident. API availability The Cloudflare API was severely impacted for two periods during the incident when the Tenant API Service was down. How we responded Our first goal in an incident is to restore service.Â Often that involves fixing the underlying issue directly, but not always.",
+      "char_start": 1819,
+      "char_end": 2931
+    },
+    {
+      "chunk_id": "c3",
+      "text": "API availability The Cloudflare API was severely impacted for two periods during the incident when the Tenant API Service was down. How we responded Our first goal in an incident is to restore service.Â Often that involves fixing the underlying issue directly, but not always.Â In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources.Â We installed a global rate limit on the Tenant Service to help regulate the load.Â The Tenant Service is a GoLang process that runs on Kubernetes in a subset of our datacenters.Â We increased the number of pods available as well to help improve throughput.Â While we did this, we had others on the team continue to investigate why we were seeing the unusually high usage.Â Ultimately, increasing the resources available to the tenant service helped with availability but was insufficient to restore normal service. After the Tenant Service began reporting healthy again and the API largely recovered, we still observed a considerable number of errors being reported from the service. ",
+      "char_start": 2655,
+      "char_end": 3760
+    },
+    {
+      "chunk_id": "c4",
+      "text": "After the Tenant Service began reporting healthy again and the API largely recovered, we still observed a considerable number of errors being reported from the service. We theorized that these were responsible for the ongoing Dashboard availability issues and made a patch to the service with the expectation that it would improve the API health and restore the dashboard to a healthy state. Ultimately this change degraded service further and was quickly reverted. The second outage can be seen in the graph above. Itâs painful to have an outage like this.Â That said, there were a few things that helped lessen the impact.Â Our automatic alerting service quickly identified the correct people to join the call and start working on remediation.Â Additionally, this was a failure in the control plane which has strict separation of concerns from the data plane.Â Thus, the outage did not affect services on Cloudflareâs network.Â The majority of users at Cloudflare were unaffected unless they were making configuration changes or using our dashboard. Going forward We believe itâs important to learn from our mistakes and this incident is an opportunity to make some improvements.",
+      "char_start": 3591,
+      "char_end": 4778
+    },
+    {
+      "chunk_id": "c5",
+      "text": "Â The majority of users at Cloudflare were unaffected unless they were making configuration changes or using our dashboard. Going forward We believe itâs important to learn from our mistakes and this incident is an opportunity to make some improvements.Â Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better inform the team during future events. Reducing impact We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error.Â Weâve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it.Â Had it been in place, we would have automatically rolled back the second Tenant Service update limiting the second outage.Â This work had already been scheduled by the team and weâve increased the priority of the migration. When we restarted the Tenant Service, everyoneâs dashboard began to re-authenticate with the API.Â This caused the API to become unstable again causing issues with everyoneâs dashboard.",
+      "char_start": 4523,
+      "char_end": 5665
+    },
+    {
+      "chunk_id": "c6",
+      "text": "When we restarted the Tenant Service, everyoneâs dashboard began to re-authenticate with the API.Â This caused the API to become unstable again causing issues with everyoneâs dashboard.Â This pattern is a common one often referred to as a Thundering Herd.Â Once a resource or service is made available, everyone tries to use it all at once. This is common, but was amplified by the bug in our dashboard logic. The fix for this behavior has already been released via a hotfix shortly after the impact was over.Â Weâll be introducing changes to the dashboard that include random delays to spread out retries and reduce contention as well.Â Finally, the Tenant Service was not allocated sufficient capacity to handle spikes in load like this. Weâve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits. Improving visibility We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests.",
+      "char_start": 5476,
+      "char_end": 6548
+    },
+    {
+      "chunk_id": "c7",
+      "text": "Weâve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits. Improving visibility We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests.Â Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the dashboard.Â We are adding changes to how we call our APIs from our dashboard to include additional information, including if the request is a retry or new request. Weâre very sorry about the disruption.Â We will continue to investigate this issue and make improvements to our systems and processes. Discuss Online Related tags Outage Post Mortem Follow on Social Media Cloudflare Tom Lianza Subscribe to receive notifications of new posts Email address Weâll never share your email address. Subscribe Thanks for subscribing! Check your inbox to confirm. Search is temporarily unavailable. ",
+      "char_start": 6222,
+      "char_end": 7286
+    },
+    {
+      "chunk_id": "c8",
+      "text": "Discuss Online Related tags Outage Post Mortem Follow on Social Media Cloudflare Tom Lianza Subscribe to receive notifications of new posts Email address Weâll never share your email address. Subscribe Thanks for subscribing! Check your inbox to confirm. Search is temporarily unavailable. Login opens in a new tab Dashboard opens in a new tab Contact Sales opens in a new tab Start Building opens in a new tab opens in a new tab opens in a new tab opens in a new tab All Categories AI Developers Radar Product News Security Policy & Legal Zero Trust Speed & Reliability Life at Cloudflare Partners English Switch Site Language English Deutsch EspaÃ±ol EspaÃ±ol (LatinoamÃ©rica) FranÃ§ais Italiano æ¥æ¬èa íêμ­ì ́ ç1é«ä ̧­æ ç®ä1⁄2ä ̧­æ PortuguÃas Ð ÑÑÑÐoÐ ̧Ð1 Bahasa Indonesia à ̧ à ̧2à ̧©à ̧2à1à ̧à ̧¢ Tiáo¿ng Viá»t Polski Ø§ÙØ1Ø±Ø ̈ÙØ© ×¢×× ̈××a Svenska Nederlands TÃ1⁄4rkÃ§e Light Dark",
+      "char_start": 6994,
+      "char_end": 7907
+    }
+  ]
+}

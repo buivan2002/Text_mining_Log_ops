@@ -1,0 +1,115 @@
+{
+  "incident_id": "INC-GH-024",
+  "title": "Facebook",
+  "source_url": "https://blog.thousandeyes.com/facebook-outage-deep-dive/",
+  "status": "ok",
+  "language": "en",
+  "truncated": false,
+  "cleaned_text": "Facebook Outage Deep Dive | ThousandEyes Summary In the late evening of January 26th, Facebook had its largest outage in more than four years. For approximately an hour both Facebook and Instagram (owned by Facebook) were completely down, along with numerous other affected sites such as Tinder and HipChat. Facebook’s own post mortem and statements suggested the outage occurred “after we introduced a change that affected our configuration systems.\" Now, three days later a lot has been written about the outage, much of it only partially accurate. Let’s take the Facebook post mortem as a starting point and see how the outage unfolded. Follow along the blog post with the interactive data set using this share link of the event. You’ll want to take a look at the HTTP Server and Path Visualization views. Facebook Data Center and Network Architecture Facebook maintains data centers in Prineville OR, Forest City NC and Luleå, Sweden (with Altoona IA ramping up). DNS-based global load balancing , based on “internet topology, user latency, user bandwidth, compute cluster load/availability/performance,” distributes traffic from visitors around the world to these data centers. Traffic is served by Facebook’s fiber network which spans East Asia, Australia, U.S. and Western Europe as well as transit providers for traffic from other locations, such as Africa, South America and India. Under normal conditions, traffic to Facebook looks like Figure 1. Two primary data center clusters are visible, with Prineville OR in the top topology and Forest City NC in the bottom topology. Figure 1: HTTPS traffic paths to Facebook before the outage, with Prineville OR data center above and Forest City NC below. Figure 2: ‘4-post’ architecture in Forest City NC. In addition, you can see Facebook’s network in light green, flowing through their backbone to aggregation switches, cluster switches and through the rack (the white interfaces) to the servers on the right. You can read more about the ‘4-post’ architecture used at the Forest City data center in this paper on Facebook’s Data Center Network Architecture . Facebook’s next generation architecture, called Fabric , will be rolled out in Altoona IA, though we don’t currently see any customer-facing production traffic flowing there yet. Facebook also has several other services with distinct architectures. Instagram is served primarily from Amazon Web Services US-East region. WhatsApp utilizes a SoftLayer data center in Northern Virginia. We’ll touch on these services below. The January 26th Facebook Outage At 10:10pm Pacific on January 26th, TCP connections to Facebook timed out, as their engineering team likely shut off traffic. In Figures 3 and 4 you can see the drop in availability caused by TCP connection problems and the near complete packet loss. Only our Denver agent was still able to reach a web server. Figure 3: Timeline of the Facebook outage with a one hour drop in availability due primarily to TCP connection errors. Figure 4: Packet loss to Facebook is greater than 80% as TCP connections are terminated in the Facebook data centers. During the outage, packets were dropped within Facebook’s network, likely by an update to their Access Control List (ACL). Figure 5 shows the path trace with traffic timing out at the aggregation switches inside Prineville, before ever reaching the racks. At approximately 11:05pm, Facebook began allowing TCP connections again, with full service restored around 11:20pm. Figure 5: Traffic terminates in the Prineville data center (red nodes), with Facebook’s network highlighted in yellow. How Instagram Fared Instagram, another Facebook-owned service affected by the outage, had a somewhat different experience. Although the service was unavailable, throwing 503 ‘service unavailable’ errors, TCP connections were completed to the web servers. This is likely due to the fact that Instagram is hosted on Amazon Web Services and did not require the same sort of network isolation to tackle the configuration issues. Figures 6 and 7 show the availability drop for Instagram, even while the network paths look healthy. Figure 6: Instagram did not terminate TCP connections, instead it replied with 503 errors. Figure 7: Path visualization to Instagram (hosted on AWS) during the outage, showing no network issues at all. Monitoring Outages Hopefully you were able to follow along with the interactive data in the share link . Interested in other outages? Check out previous analysis of the Craigslist DNS hijack , Time Warner Cable outage and a GitHub DDoS . If you’d like to see a live data set of Facebook, or track the availability of other major cloud services such as Twitter and Salesforce, sign up for a free ThousandEyes trial . Published On Nick Kephart Sr. Director, Product Management Categories: Outage Analyses Share This! Back to ThousandEyes Blog Stay Connected Subscribe to the Internet and Cloud Intelligence Blog! Subscribe Stay Connected Subscribe to the Internet and Cloud Intelligence Blog! Subscribe related blogs Claude Outage Analysis: June 23, 2026 On June 23, ThousandEyes observed a degradation of service affecting Anthropic's Claude. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 23 Jun 2026 Application Experience Artificial Intelligence (AI) Internet Outages Meta Outage Analysis: June 12, 2026 On June 12, ThousandEyes detected response errors and timeouts across multiple Meta services. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 12 Jun 2026 Internet Outages Network Outages Google Gemini Outage Analysis: June 10, 2026 On June 10, ThousandEyes detected a service degradation affecting Google Gemini. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 11 Jun 2026 Internet Outages X Outage Analysis: January 16, 2026 On January 16, ThousandEyes observed service disruptions affecting the X platform. See how the incident unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 16 Jan 2026 Internet Outages YouTube and Google Service Disruption Analysis: December 19, 2025 On December 19, between approximately 12:00 and 13:35 UTC, ThousandEyes observed service disruptions affecting YouTube and google.com. See how the incident unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 19 Dec 2025 Internet Outages Cloudflare Outage Analysis: November 18, 2025 On November 18, Cisco ThousandEyes observed a global outage in cloud and CDN provider Cloudflare, impacting multiple Internet services. See how the outage unfolded in this analysis. By Internet Research Team 18 Nov 2025 Content Delivery Network (CDN) Internet Outages Network Outages Cloudflare Outage Analysis: December 5, 2025 On December 5, Cisco ThousandEyes observed a global outage affecting cloud and CDN provider Cloudflare, impacting multiple Internet services. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 05 Dec 2025 Content Delivery Network (CDN) Internet Outages Network Outages Microsoft Azure Front Door Outage Analysis: October 29, 2025 On October 29, Cisco ThousandEyes observed a global issue affecting Microsoft Azure Front Door (AFD) and impacting service for several hours. See how the outage unfolded and get key takeaways for distributed network operations teams in this analysis. By Internet Research Team 29 Oct 2025 Internet Outages Microsoft Azure AWS Outage Analysis: October 20, 2025 On October 20, AWS experienced a significant disruption in its US-EAST-1 region, impacting multiple services that rely on AWS. See how the AWS outage unfolded in this analysis. By Internet Research Team 20 Oct 2025 Amazon Web Services (AWS) Internet Outages Microsoft-AT&T Service Disruption: October 9, 2025 On October 9, ThousandEyes observed a network-related incident affecting multiple Microsoft services, including Microsoft 365, Teams, and others. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 09 Oct 2025 Internet Outages Microsoft 365 Microsoft Teams Network Outages Please enable JavaScript to view the comments powered by Disqus. AMERICAS Brazil (Português) Canada (Français) Mexico (Español) United States (English) EUROPE France (Français) Germany (Deutsch) Italy (Italiano) Spain (Español) ASIA Japan (日本語) Korea (한국어) Mainland China (简体中文) Upgrade your browser to view our website properly. Please download the latest version of Chrome , Firefox or Microsoft Edge . More detail × × Subscribe to the ThousandEyes Blog Stay connected with blog updates and outage reports delivered while they're still fresh. Join Blog Community Keep Reading",
+  "log_fragments": [
+    {
+      "type": "http_status",
+      "text": "503",
+      "start": 3778,
+      "end": 3781
+    },
+    {
+      "type": "http_status",
+      "text": "503",
+      "start": 4213,
+      "end": 4216
+    },
+    {
+      "type": "error_token",
+      "text": "EAST",
+      "start": 7741,
+      "end": 7745
+    },
+    {
+      "type": "http_status",
+      "text": "365",
+      "start": 8106,
+      "end": 8109
+    },
+    {
+      "type": "http_status",
+      "text": "365",
+      "start": 8284,
+      "end": 8287
+    },
+    {
+      "type": "error_token",
+      "text": "EUROPE",
+      "start": 8472,
+      "end": 8478
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "c0",
+      "text": "Facebook Outage Deep Dive | ThousandEyes Summary In the late evening of January 26th, Facebook had its largest outage in more than four years. For approximately an hour both Facebook and Instagram (owned by Facebook) were completely down, along with numerous other affected sites such as Tinder and HipChat. Facebook’s own post mortem and statements suggested the outage occurred “after we introduced a change that affected our configuration systems.\" Now, three days later a lot has been written about the outage, much of it only partially accurate. Let’s take the Facebook post mortem as a starting point and see how the outage unfolded. Follow along the blog post with the interactive data set using this share link of the event. You’ll want to take a look at the HTTP Server and Path Visualization views. Facebook Data Center and Network Architecture Facebook maintains data centers in Prineville OR, Forest City NC and Luleå, Sweden (with Altoona IA ramping up). DNS-based global load balancing , based on “internet topology, user latency, user bandwidth, compute cluster load/availability/performance,” distributes traffic from visitors around the world to these data centers. ",
+      "char_start": 0,
+      "char_end": 1183
+    },
+    {
+      "chunk_id": "c1",
+      "text": "Now, three days later a lot has been written about the outage, much of it only partially accurate. Let’s take the Facebook post mortem as a starting point and see how the outage unfolded. Follow along the blog post with the interactive data set using this share link of the event. You’ll want to take a look at the HTTP Server and Path Visualization views. Facebook Data Center and Network Architecture Facebook maintains data centers in Prineville OR, Forest City NC and Luleå, Sweden (with Altoona IA ramping up). DNS-based global load balancing , based on “internet topology, user latency, user bandwidth, compute cluster load/availability/performance,” distributes traffic from visitors around the world to these data centers. Traffic is served by Facebook’s fiber network which spans East Asia, Australia, U.S. and Western Europe as well as transit providers for traffic from other locations, such as Africa, South America and India. Under normal conditions, traffic to Facebook looks like Figure 1. Two primary data center clusters are visible, with Prineville OR in the top topology and Forest City NC in the bottom topology. ",
+      "char_start": 452,
+      "char_end": 1585
+    },
+    {
+      "chunk_id": "c2",
+      "text": "Under normal conditions, traffic to Facebook looks like Figure 1. Two primary data center clusters are visible, with Prineville OR in the top topology and Forest City NC in the bottom topology. Figure 1: HTTPS traffic paths to Facebook before the outage, with Prineville OR data center above and Forest City NC below. Figure 2: ‘4-post’ architecture in Forest City NC. In addition, you can see Facebook’s network in light green, flowing through their backbone to aggregation switches, cluster switches and through the rack (the white interfaces) to the servers on the right. You can read more about the ‘4-post’ architecture used at the Forest City data center in this paper on Facebook’s Data Center Network Architecture . Facebook’s next generation architecture, called Fabric , will be rolled out in Altoona IA, though we don’t currently see any customer-facing production traffic flowing there yet. Facebook also has several other services with distinct architectures. Instagram is served primarily from Amazon Web Services US-East region. WhatsApp utilizes a SoftLayer data center in Northern Virginia. We’ll touch on these services below. ",
+      "char_start": 1391,
+      "char_end": 2536
+    },
+    {
+      "chunk_id": "c3",
+      "text": "Instagram is served primarily from Amazon Web Services US-East region. WhatsApp utilizes a SoftLayer data center in Northern Virginia. We’ll touch on these services below. The January 26th Facebook Outage At 10:10pm Pacific on January 26th, TCP connections to Facebook timed out, as their engineering team likely shut off traffic. In Figures 3 and 4 you can see the drop in availability caused by TCP connection problems and the near complete packet loss. Only our Denver agent was still able to reach a web server. Figure 3: Timeline of the Facebook outage with a one hour drop in availability due primarily to TCP connection errors. Figure 4: Packet loss to Facebook is greater than 80% as TCP connections are terminated in the Facebook data centers. During the outage, packets were dropped within Facebook’s network, likely by an update to their Access Control List (ACL). Figure 5 shows the path trace with traffic timing out at the aggregation switches inside Prineville, before ever reaching the racks. At approximately 11:05pm, Facebook began allowing TCP connections again, with full service restored around 11:20pm. ",
+      "char_start": 2364,
+      "char_end": 3489
+    },
+    {
+      "chunk_id": "c4",
+      "text": "Figure 5 shows the path trace with traffic timing out at the aggregation switches inside Prineville, before ever reaching the racks. At approximately 11:05pm, Facebook began allowing TCP connections again, with full service restored around 11:20pm. Figure 5: Traffic terminates in the Prineville data center (red nodes), with Facebook’s network highlighted in yellow. How Instagram Fared Instagram, another Facebook-owned service affected by the outage, had a somewhat different experience. Although the service was unavailable, throwing 503 ‘service unavailable’ errors, TCP connections were completed to the web servers. This is likely due to the fact that Instagram is hosted on Amazon Web Services and did not require the same sort of network isolation to tackle the configuration issues. Figures 6 and 7 show the availability drop for Instagram, even while the network paths look healthy. Figure 6: Instagram did not terminate TCP connections, instead it replied with 503 errors. Figure 7: Path visualization to Instagram (hosted on AWS) during the outage, showing no network issues at all. ",
+      "char_start": 3240,
+      "char_end": 4336
+    },
+    {
+      "chunk_id": "c5",
+      "text": "Figure 6: Instagram did not terminate TCP connections, instead it replied with 503 errors. Figure 7: Path visualization to Instagram (hosted on AWS) during the outage, showing no network issues at all. Monitoring Outages Hopefully you were able to follow along with the interactive data in the share link . Interested in other outages? Check out previous analysis of the Craigslist DNS hijack , Time Warner Cable outage and a GitHub DDoS . If you’d like to see a live data set of Facebook, or track the availability of other major cloud services such as Twitter and Salesforce, sign up for a free ThousandEyes trial . Published On Nick Kephart Sr. Director, Product Management Categories: Outage Analyses Share This! Back to ThousandEyes Blog Stay Connected Subscribe to the Internet and Cloud Intelligence Blog! Subscribe Stay Connected Subscribe to the Internet and Cloud Intelligence Blog! Subscribe related blogs Claude Outage Analysis: June 23, 2026 On June 23, ThousandEyes observed a degradation of service affecting Anthropic's Claude. See how the outage unfolded in this analysis—more updates will be added as we have them. ",
+      "char_start": 4134,
+      "char_end": 5267
+    },
+    {
+      "chunk_id": "c6",
+      "text": "Subscribe related blogs Claude Outage Analysis: June 23, 2026 On June 23, ThousandEyes observed a degradation of service affecting Anthropic's Claude. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 23 Jun 2026 Application Experience Artificial Intelligence (AI) Internet Outages Meta Outage Analysis: June 12, 2026 On June 12, ThousandEyes detected response errors and timeouts across multiple Meta services. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 12 Jun 2026 Internet Outages Network Outages Google Gemini Outage Analysis: June 10, 2026 On June 10, ThousandEyes detected a service degradation affecting Google Gemini. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 11 Jun 2026 Internet Outages X Outage Analysis: January 16, 2026 On January 16, ThousandEyes observed service disruptions affecting the X platform. See how the incident unfolded in this analysis—more updates will be added as we have them. ",
+      "char_start": 5027,
+      "char_end": 6144
+    },
+    {
+      "chunk_id": "c7",
+      "text": "By Internet Research Team 11 Jun 2026 Internet Outages X Outage Analysis: January 16, 2026 On January 16, ThousandEyes observed service disruptions affecting the X platform. See how the incident unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 16 Jan 2026 Internet Outages YouTube and Google Service Disruption Analysis: December 19, 2025 On December 19, between approximately 12:00 and 13:35 UTC, ThousandEyes observed service disruptions affecting YouTube and google.com. See how the incident unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 19 Dec 2025 Internet Outages Cloudflare Outage Analysis: November 18, 2025 On November 18, Cisco ThousandEyes observed a global outage in cloud and CDN provider Cloudflare, impacting multiple Internet services. See how the outage unfolded in this analysis. By Internet Research Team 18 Nov 2025 Content Delivery Network (CDN) Internet Outages Network Outages Cloudflare Outage Analysis: December 5, 2025 On December 5, Cisco ThousandEyes observed a global outage affecting cloud and CDN provider Cloudflare, impacting multiple Internet services. ",
+      "char_start": 5879,
+      "char_end": 7063
+    },
+    {
+      "chunk_id": "c8",
+      "text": "By Internet Research Team 18 Nov 2025 Content Delivery Network (CDN) Internet Outages Network Outages Cloudflare Outage Analysis: December 5, 2025 On December 5, Cisco ThousandEyes observed a global outage affecting cloud and CDN provider Cloudflare, impacting multiple Internet services. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 05 Dec 2025 Content Delivery Network (CDN) Internet Outages Network Outages Microsoft Azure Front Door Outage Analysis: October 29, 2025 On October 29, Cisco ThousandEyes observed a global issue affecting Microsoft Azure Front Door (AFD) and impacting service for several hours. See how the outage unfolded and get key takeaways for distributed network operations teams in this analysis. By Internet Research Team 29 Oct 2025 Internet Outages Microsoft Azure AWS Outage Analysis: October 20, 2025 On October 20, AWS experienced a significant disruption in its US-EAST-1 region, impacting multiple services that rely on AWS. See how the AWS outage unfolded in this analysis. ",
+      "char_start": 6774,
+      "char_end": 7852
+    },
+    {
+      "chunk_id": "c9",
+      "text": "By Internet Research Team 29 Oct 2025 Internet Outages Microsoft Azure AWS Outage Analysis: October 20, 2025 On October 20, AWS experienced a significant disruption in its US-EAST-1 region, impacting multiple services that rely on AWS. See how the AWS outage unfolded in this analysis. By Internet Research Team 20 Oct 2025 Amazon Web Services (AWS) Internet Outages Microsoft-AT&T Service Disruption: October 9, 2025 On October 9, ThousandEyes observed a network-related incident affecting multiple Microsoft services, including Microsoft 365, Teams, and others. See how the outage unfolded in this analysis—more updates will be added as we have them. By Internet Research Team 09 Oct 2025 Internet Outages Microsoft 365 Microsoft Teams Network Outages Please enable JavaScript to view the comments powered by Disqus. AMERICAS Brazil (Português) Canada (Français) Mexico (Español) United States (English) EUROPE France (Français) Germany (Deutsch) Italy (Italiano) Spain (Español) ASIA Japan (日本語) Korea (한국어) Mainland China (简体中文) Upgrade your browser to view our website properly. Please download the latest version of Chrome , Firefox or Microsoft Edge . ",
+      "char_start": 7566,
+      "char_end": 8725
+    },
+    {
+      "chunk_id": "c10",
+      "text": "AMERICAS Brazil (Português) Canada (Français) Mexico (Español) United States (English) EUROPE France (Français) Germany (Deutsch) Italy (Italiano) Spain (Español) ASIA Japan (日本語) Korea (한국어) Mainland China (简体中文) Upgrade your browser to view our website properly. Please download the latest version of Chrome , Firefox or Microsoft Edge . More detail × × Subscribe to the ThousandEyes Blog Stay connected with blog updates and outage reports delivered while they're still fresh. Join Blog Community Keep Reading",
+      "char_start": 8385,
+      "char_end": 8897
+    }
+  ]
+}

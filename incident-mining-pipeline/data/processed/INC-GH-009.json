@@ -1,0 +1,157 @@
+{
+  "incident_id": "INC-GH-009",
+  "title": "Cloudflare",
+  "source_url": "https://blog.cloudflare.com/cloudflare-incident-on-january-24th-2023/",
+  "status": "ok",
+  "language": "en",
+  "truncated": true,
+  "cleaned_text": "Cloudflare incident on January 24, 2023 | Cloudflare Blog Several Cloudflare services became unavailable for 121 minutes on January 24, 2023 due to an error releasing code that manages service tokens. The incident degraded a wide range of Cloudflare products including aspects of our Workers platform, our Zero Trust solution , and control plane functions in our content delivery network (CDN). Cloudflare provides a service token functionality to allow automated services to authenticate to other services. Customers can use service tokens to secure the interaction between an application running in a data center and a resource in a public cloud provider, for example. As part of the release, we intended to introduce a feature that showed administrators the time that a token was last used, giving users the ability to safely clean up unused tokens. The change inadvertently overwrote other metadata about the service tokens and rendered the tokens of impacted accounts invalid for the duration of the incident. The reason this release affected other services is due to the fact that Cloudflare runs on Cloudflare. Service tokens impact the ability for accounts to authenticate, and two of the impacted accounts power multiple Cloudflare services. When these accountsâ service tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors. Although a limited segment of customers and end users were directly affected by this incident and other customers may have experienced service degradation, the overall impact on Cloudflareâs network and services was not substantial. Nevertheless, we know the impact to the customers that were affected was painful. Weâre documenting what went wrong so that you can understand why this happened and the steps we are taking to prevent this from occurring again. What is a service token? When users log into an application or identity provider, they typically input a username and a password. The password allows that user to demonstrate that they are in control of the username and that the service should allow them to proceed. Layers of additional authentication can be added, like hard keys or device posture, but the workflow consists of a human proving they are who they say they are to a service. However, humans are not the only users that need to authenticate to a service. Applications frequently need to talk to other applications. For example, imagine you build an application that shows a user information about their upcoming travel plans. The airline holds details about the flight and its duration in their own system. They do not want to make the details of every individual trip public on the Internet, and they do not want to invite your application into their private network. Likewise, the hotel wants to make sure that they only send details of a room booking to a valid, approved third party service. Your application needs a trusted way to authenticate with those external systems. Service tokens solve this problem by functioning as a kind of username and password for your service. Like usernames and passwords, service tokens come in two parts: a Client ID and a Client Secret. Both the ID and Secret must be sent with a request for authentication. Tokens are also assigned a duration, after which they become invalid and must be rotated. You can grant your application a service token and, if the upstream systems you need validate it, your service can grab airline and hotel information and present it to the end user in a joint report. When administrators create Cloudflare service tokens, we generate the Client ID and the Client Secret pair. Customers can then configure their requesting services to send both values as HTTP headers when they need to reach a protected resource. The requesting service can run in any environment, including inside of Cloudflareâs network in the form of a Worker or in a separate location like a public cloud provider. Customers need to deploy the corresponding protected resource behind Cloudflareâs reverse proxy. Our network checks every request bound for a configured service for the HTTP headers. If present, Cloudflare validates their authenticity and either blocks the request or allows it to proceed. We also log the authentication event. Incident Timeline All Timestamps are UTC At 2023-01-24 16:55 the Access engineering team initiated the release that inadvertently began to overwrite service token metadata, causing the incident. At 2023-01-24 17:05 a member of the Access engineering team noticed an unrelated issue and rolled back the release which stopped any further overwrites of service token metadata. Service token values are not updated across Cloudflareâs network until the service token itself is updated (more details below). This caused a staggered impact of the service tokenâs that had their metadata overwritten. 2023-01-24 17:50: The first invalid service token for Cloudflare WARP was synced to our global network. Impact began for WARP and Zero Trust users. WARP device posture uploads dropped to zero which raised an internal alert At 2023-01-24 18:12 an incident was declared due to the large drop in successful WARP device posture uploads. 2023-01-24 18:19: The first invalid service token for the Cloudflare API was synced to our global network. Impact began for Cache Purge, Cache Reserve, Images and R2. Alerts were triggered for these products which identified a larger scope of the incident. At 2023-01-24 18:21 the overwritten services tokens were discovered during the initial investigation. At 2023-01-24 18:28 the incident was elevated to include all impacted products. At 2023-01-24 18:51 An initial solution was identified and implemented to revert the service token to its original value for the Cloudflare WARP account, impacting WARP and Zero Trust. Impact ended for WARP and Zero Trust. At 2023-01-24 18:56 The same solution was implemented on the Cloudflare API account, impacting Cache Purge, Cache Reserve, Images and R2. Impact ended for Cache Purge, Cache Reserve, Images and R2. At 2023-01-24 19:00 An update was made to the Cloudflare API account which incorrectly overwrote the Cloudflare API account. Impact restarted for Cache Purge, Cache Reserve, Images and R2. All internal Cloudflare account changes were then locked until incident resolution. At 2023-01-24 19:07 the Cloudflare API was updated to include the correct service token value. Impact ended for Cache Purge, Cache Reserve, Images and R2. At 2023-01-24 19:51 all affected accounts had their service tokens restored from a database backup. Incident Ends. What was released and how did it break? The Access team was rolling out a new change to service tokens that added a âLast seen atâ field. This was a popular feature request to help identify which service tokens were actively in use. What went wrong? The âlast seen atâ value was derived by scanning all new login events in an accountâs login event Kafka queue. If a login event using a service token was detected, an update to the corresponding service tokenâs last seen value was initiated. In order to update the service tokenâs âlast seen atâ value a read write transaction is made to collect the information about the corresponding service token. Service token read requests redact the âclient secretâ value by default for security reasons. The âlast seen atâ update to the service token then used that information from the read did not include the âclient secretâ and updated the service token with an empty âclient secretâ on the write. An example of the correct and incorrect service token values shown below: Example Access Service Token values { \"1a4ddc9e-a1234-4acc-a623-7e775e579c87\" : { \"client_id\" : \"6b12308372690a99277e970a3039343c.access\", \"client_secret\" : \"<hashed-value>\", < -- what you would expect \"expires_at\" : 1698331351 }, \"23ade6c6-a123-4747-818a-cd7c20c83d15\" : { \"client_id\" : \"1ab44976dbbbdadc6d3e16453c096b00.access\", \"client_secret\" : \"\", < --- this is the problem \"expires_at\" : 1670621577 } } The service token âclient secretâ database did have a ânot nullâ check however in this situation an empty text string did not trigger as a null value. As a result of the bug, any Cloudflare account that used a service token to authenticate during the 10 minutes âlast seen atâ release was out would have its âclient secretâ value set to an empty string. The service token then needed to be modified in order for the empty âclient secretâ to be used for authentication. There were a total of 4 accounts in this state, all of which are internal to Cloudflare. How did we fix the issue? As a temporary solution, we were able to manually restore the correct service token values for the accounts with overwritten service tokens. This stopped the immediate impact across the affected Cloudflare services. The database team was then able to implement a solution to restore the service tokens of all impacted accounts from an older database copy. This concluded any impact from this incident. Why did this impact other Cloudflare services? Service tokens impact the ability for accounts to authenticate. Two of the impacted accounts power multiple Cloudflare services. When these accountsâ services tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors. Cloudflare WARP enrollment Cloudflare provides a mobile and desktop forward proxy, Cloudflare WARP (our â1.1.1.1â app), that any user can install on a device to improve the privacy of their Internet traffic. Any individual can install this service without the need for a Cloudflare account and we do not retain logs that map activity to a user. When a user connects using WARP, Cloudflare validates the enrollment of a device by relying on a service that receives and validates the keys on the device. In turn, tha",
+  "log_fragments": [
+    {
+      "type": "http_status",
+      "text": "121",
+      "start": 125,
+      "end": 128
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 16:55",
+      "start": 4388,
+      "end": 4404
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 17:05",
+      "start": 4542,
+      "end": 4558
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 17:50",
+      "start": 4942,
+      "end": 4958
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:12",
+      "start": 5168,
+      "end": 5184
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:19",
+      "start": 5275,
+      "end": 5291
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:21",
+      "start": 5535,
+      "end": 5551
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:28",
+      "start": 5637,
+      "end": 5653
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:51",
+      "start": 5717,
+      "end": 5733
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 18:56",
+      "start": 5940,
+      "end": 5956
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 19:00",
+      "start": 6138,
+      "end": 6154
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 19:07",
+      "start": 6411,
+      "end": 6427
+    },
+    {
+      "type": "timestamp",
+      "text": "2023-01-24 19:51",
+      "start": 6566,
+      "end": 6582
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "c0",
+      "text": "Cloudflare incident on January 24, 2023 | Cloudflare Blog Several Cloudflare services became unavailable for 121 minutes on January 24, 2023 due to an error releasing code that manages service tokens. The incident degraded a wide range of Cloudflare products including aspects of our Workers platform, our Zero Trust solution , and control plane functions in our content delivery network (CDN). Cloudflare provides a service token functionality to allow automated services to authenticate to other services. Customers can use service tokens to secure the interaction between an application running in a data center and a resource in a public cloud provider, for example. As part of the release, we intended to introduce a feature that showed administrators the time that a token was last used, giving users the ability to safely clean up unused tokens. The change inadvertently overwrote other metadata about the service tokens and rendered the tokens of impacted accounts invalid for the duration of the incident. The reason this release affected other services is due to the fact that Cloudflare runs on Cloudflare. ",
+      "char_start": 0,
+      "char_end": 1118
+    },
+    {
+      "chunk_id": "c1",
+      "text": "The change inadvertently overwrote other metadata about the service tokens and rendered the tokens of impacted accounts invalid for the duration of the incident. The reason this release affected other services is due to the fact that Cloudflare runs on Cloudflare. Service tokens impact the ability for accounts to authenticate, and two of the impacted accounts power multiple Cloudflare services. When these accountsâ service tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors. Although a limited segment of customers and end users were directly affected by this incident and other customers may have experienced service degradation, the overall impact on Cloudflareâs network and services was not substantial. Nevertheless, we know the impact to the customers that were affected was painful. Weâre documenting what went wrong so that you can understand why this happened and the steps we are taking to prevent this from occurring again. What is a service token? When users log into an application or identity provider, they typically input a username and a password. ",
+      "char_start": 853,
+      "char_end": 2006
+    },
+    {
+      "chunk_id": "c2",
+      "text": "Weâre documenting what went wrong so that you can understand why this happened and the steps we are taking to prevent this from occurring again. What is a service token? When users log into an application or identity provider, they typically input a username and a password. The password allows that user to demonstrate that they are in control of the username and that the service should allow them to proceed. Layers of additional authentication can be added, like hard keys or device posture, but the workflow consists of a human proving they are who they say they are to a service. However, humans are not the only users that need to authenticate to a service. Applications frequently need to talk to other applications. For example, imagine you build an application that shows a user information about their upcoming travel plans. The airline holds details about the flight and its duration in their own system. They do not want to make the details of every individual trip public on the Internet, and they do not want to invite your application into their private network. ",
+      "char_start": 1729,
+      "char_end": 2810
+    },
+    {
+      "chunk_id": "c3",
+      "text": "They do not want to make the details of every individual trip public on the Internet, and they do not want to invite your application into their private network. Likewise, the hotel wants to make sure that they only send details of a room booking to a valid, approved third party service. Your application needs a trusted way to authenticate with those external systems. Service tokens solve this problem by functioning as a kind of username and password for your service. Like usernames and passwords, service tokens come in two parts: a Client ID and a Client Secret. Both the ID and Secret must be sent with a request for authentication. Tokens are also assigned a duration, after which they become invalid and must be rotated. You can grant your application a service token and, if the upstream systems you need validate it, your service can grab airline and hotel information and present it to the end user in a joint report. When administrators create Cloudflare service tokens, we generate the Client ID and the Client Secret pair. Customers can then configure their requesting services to send both values as HTTP headers when they need to reach a protected resource. ",
+      "char_start": 2648,
+      "char_end": 3824
+    },
+    {
+      "chunk_id": "c4",
+      "text": "When administrators create Cloudflare service tokens, we generate the Client ID and the Client Secret pair. Customers can then configure their requesting services to send both values as HTTP headers when they need to reach a protected resource. The requesting service can run in any environment, including inside of Cloudflareâs network in the form of a Worker or in a separate location like a public cloud provider. Customers need to deploy the corresponding protected resource behind Cloudflareâs reverse proxy. Our network checks every request bound for a configured service for the HTTP headers. If present, Cloudflare validates their authenticity and either blocks the request or allows it to proceed. We also log the authentication event. Incident Timeline All Timestamps are UTC At 2023-01-24 16:55 the Access engineering team initiated the release that inadvertently began to overwrite service token metadata, causing the incident. At 2023-01-24 17:05 a member of the Access engineering team noticed an unrelated issue and rolled back the release which stopped any further overwrites of service token metadata. ",
+      "char_start": 3579,
+      "char_end": 4702
+    },
+    {
+      "chunk_id": "c5",
+      "text": "At 2023-01-24 17:05 a member of the Access engineering team noticed an unrelated issue and rolled back the release which stopped any further overwrites of service token metadata. Service token values are not updated across Cloudflareâs network until the service token itself is updated (more details below). This caused a staggered impact of the service tokenâs that had their metadata overwritten. 2023-01-24 17:50: The first invalid service token for Cloudflare WARP was synced to our global network. Impact began for WARP and Zero Trust users. WARP device posture uploads dropped to zero which raised an internal alert At 2023-01-24 18:12 an incident was declared due to the large drop in successful WARP device posture uploads. 2023-01-24 18:19: The first invalid service token for the Cloudflare API was synced to our global network. Impact began for Cache Purge, Cache Reserve, Images and R2. Alerts were triggered for these products which identified a larger scope of the incident. At 2023-01-24 18:21 the overwritten services tokens were discovered during the initial investigation. At 2023-01-24 18:28 the incident was elevated to include all impacted products. ",
+      "char_start": 4523,
+      "char_end": 5698
+    },
+    {
+      "chunk_id": "c6",
+      "text": "At 2023-01-24 18:21 the overwritten services tokens were discovered during the initial investigation. At 2023-01-24 18:28 the incident was elevated to include all impacted products. At 2023-01-24 18:51 An initial solution was identified and implemented to revert the service token to its original value for the Cloudflare WARP account, impacting WARP and Zero Trust. Impact ended for WARP and Zero Trust. At 2023-01-24 18:56 The same solution was implemented on the Cloudflare API account, impacting Cache Purge, Cache Reserve, Images and R2. Impact ended for Cache Purge, Cache Reserve, Images and R2. At 2023-01-24 19:00 An update was made to the Cloudflare API account which incorrectly overwrote the Cloudflare API account. Impact restarted for Cache Purge, Cache Reserve, Images and R2. All internal Cloudflare account changes were then locked until incident resolution. At 2023-01-24 19:07 the Cloudflare API was updated to include the correct service token value. Impact ended for Cache Purge, Cache Reserve, Images and R2. At 2023-01-24 19:51 all affected accounts had their service tokens restored from a database backup. Incident Ends. What was released and how did it break? ",
+      "char_start": 5516,
+      "char_end": 6702
+    },
+    {
+      "chunk_id": "c7",
+      "text": "At 2023-01-24 19:51 all affected accounts had their service tokens restored from a database backup. Incident Ends. What was released and how did it break? The Access team was rolling out a new change to service tokens that added a âLast seen atâ field. This was a popular feature request to help identify which service tokens were actively in use. What went wrong? The âlast seen atâ value was derived by scanning all new login events in an accountâs login event Kafka queue. If a login event using a service token was detected, an update to the corresponding service tokenâs last seen value was initiated. In order to update the service tokenâs âlast seen atâ value a read write transaction is made to collect the information about the corresponding service token. Service token read requests redact the âclient secretâ value by default for security reasons. The âlast seen atâ update to the service token then used that information from the read did not include the âclient secretâ and updated the service token with an empty âclient secretâ on the write. ",
+      "char_start": 6547,
+      "char_end": 7639
+    },
+    {
+      "chunk_id": "c8",
+      "text": "The âlast seen atâ update to the service token then used that information from the read did not include the âclient secretâ and updated the service token with an empty âclient secretâ on the write. An example of the correct and incorrect service token values shown below: Example Access Service Token values { \"1a4ddc9e-a1234-4acc-a623-7e775e579c87\" : { \"client_id\" : \"6b12308372690a99277e970a3039343c.access\", \"client_secret\" : \"<hashed-value>\", < -- what you would expect \"expires_at\" : 1698331351 }, \"23ade6c6-a123-4747-818a-cd7c20c83d15\" : { \"client_id\" : \"1ab44976dbbbdadc6d3e16453c096b00.access\", \"client_secret\" : \"\", < --- this is the problem \"expires_at\" : 1670621577 } } The service token âclient secretâ database did have a ânot nullâ check however in this situation an empty text string did not trigger as a null value. As a result of the bug, any Cloudflare account that used a service token to authenticate during the 10 minutes âlast seen atâ release was out would have its âclient secretâ value set to an empty string. The service token then needed to be modified in order for the empty âclient secretâ to be used for authentication. ",
+      "char_start": 7429,
+      "char_end": 8611
+    },
+    {
+      "chunk_id": "c9",
+      "text": "As a result of the bug, any Cloudflare account that used a service token to authenticate during the 10 minutes âlast seen atâ release was out would have its âclient secretâ value set to an empty string. The service token then needed to be modified in order for the empty âclient secretâ to be used for authentication. There were a total of 4 accounts in this state, all of which are internal to Cloudflare. How did we fix the issue? As a temporary solution, we were able to manually restore the correct service token values for the accounts with overwritten service tokens. This stopped the immediate impact across the affected Cloudflare services. The database team was then able to implement a solution to restore the service tokens of all impacted accounts from an older database copy. This concluded any impact from this incident. Why did this impact other Cloudflare services? Service tokens impact the ability for accounts to authenticate. Two of the impacted accounts power multiple Cloudflare services. When these accountsâ services tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors. ",
+      "char_start": 8281,
+      "char_end": 9466
+    },
+    {
+      "chunk_id": "c10",
+      "text": "When these accountsâ services tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors. Cloudflare WARP enrollment Cloudflare provides a mobile and desktop forward proxy, Cloudflare WARP (our â1.1.1.1â app), that any user can install on a device to improve the privacy of their Internet traffic. Any individual can install this service without the need for a Cloudflare account and we do not retain logs that map activity to a user. When a user connects using WARP, Cloudflare validates the enrollment of a device by relying on a service that receives and validates the keys on the device. In turn, tha",
+      "char_start": 9304,
+      "char_end": 9984
+    }
+  ]
+}
