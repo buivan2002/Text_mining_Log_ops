@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # LLM (Qwen local qua Ollama)
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    llm_model_name: str = os.getenv("LLM_MODEL_NAME", "qwen2.5:7b-instruct")
+    llm_model_name: str = os.getenv("LLM_MODEL_NAME", "qwen2.5:3b-instruct")
 
     # NER model đã fine-tune (Layer 2)
     ner_model_path: str = os.getenv("NER_MODEL_PATH", "models/deberta-ner-incident")

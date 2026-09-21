@@ -1,0 +1,23 @@
+{
+  "O": 0,
+  "B-SERVICE": 1,
+  "I-SERVICE": 2,
+  "B-COMPONENT": 3,
+  "I-COMPONENT": 4,
+  "B-ERROR_CODE": 5,
+  "I-ERROR_CODE": 6,
+  "B-METRIC": 7,
+  "I-METRIC": 8,
+  "B-TIME_EXPR": 9,
+  "I-TIME_EXPR": 10,
+  "B-ROOT_CAUSE": 11,
+  "I-ROOT_CAUSE": 12,
+  "B-SYMPTOM": 13,
+  "I-SYMPTOM": 14,
+  "B-IMPACT": 15,
+  "I-IMPACT": 16,
+  "B-MITIGATION": 17,
+  "I-MITIGATION": 18,
+  "B-TEAM": 19,
+  "I-TEAM": 20
+}

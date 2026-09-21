@@ -7,7 +7,10 @@ scikit-learn
 neo4j
 qdrant-client
 transformers
+sentencepiece
+protobuf
 torch
 openai
 pysbd
+httpx
 pytest

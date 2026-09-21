@@ -1,0 +1,80 @@
+{
+  "total_incidents": 28,
+  "excluded_non_english": [
+    "INC-GH-002"
+  ],
+  "total_domains": 10,
+  "sample_size": 10,
+  "sample": [
+    {
+      "incident_id": "INC-GH-007",
+      "title": "Cloudflare",
+      "domain": "blog.cloudflare.com",
+      "num_chunks": 12,
+      "reason": "representative (median length) of 15 doc(s) from blog.cloudflare.com"
+    },
+    {
+      "incident_id": "INC-GH-024",
+      "title": "Facebook",
+      "domain": "blog.thousandeyes.com",
+      "num_chunks": 11,
+      "reason": "representative (median length) of 1 doc(s) from blog.thousandeyes.com"
+    },
+    {
+      "incident_id": "INC-GH-030",
+      "title": "Google",
+      "domain": "cloud.google.com",
+      "num_chunks": 7,
+      "reason": "representative (median length) of 1 doc(s) from cloud.google.com"
+    },
+    {
+      "incident_id": "INC-GH-022",
+      "title": "Etsy",
+      "domain": "codeascraft.com",
+      "num_chunks": 11,
+      "reason": "representative (median length) of 1 doc(s) from codeascraft.com"
+    },
+    {
+      "incident_id": "INC-GH-020",
+      "title": "Datadog",
+      "domain": "datadoghq.com",
+      "num_chunks": 10,
+      "reason": "representative (median length) of 1 doc(s) from datadoghq.com"
+    },
+    {
+      "incident_id": "INC-GH-004",
+      "title": "CircleCI",
+      "domain": "discuss.circleci.com",
+      "num_chunks": 8,
+      "reason": "representative (median length) of 2 doc(s) from discuss.circleci.com"
+    },
+    {
+      "incident_id": "INC-GH-023",
+      "title": "Facebook",
+      "domain": "engineering.fb.com",
+      "num_chunks": 12,
+      "reason": "representative (median length) of 1 doc(s) from engineering.fb.com"
+    },
+    {
+      "incident_id": "INC-GH-028",
+      "title": "GitHub",
+      "domain": "github.blog",
+      "num_chunks": 10,
+      "reason": "representative (median length) of 3 doc(s) from github.blog"
+    },
+    {
+      "incident_id": "INC-GH-029",
+      "title": "GoCardless",
+      "domain": "gocardless.com",
+      "num_chunks": 11,
+      "reason": "representative (median length) of 1 doc(s) from gocardless.com"
+    },
+    {
+      "incident_id": "INC-GH-025",
+      "title": "Firefox",
+      "domain": "hacks.mozilla.org",
+      "num_chunks": 11,
+      "reason": "representative (median length) of 1 doc(s) from hacks.mozilla.org"
+    }
+  ]
+}
