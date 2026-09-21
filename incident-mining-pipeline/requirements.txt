@@ -10,6 +10,7 @@ transformers
 sentencepiece
 protobuf
 torch
+seqeval
 openai
 pysbd
 httpx
