@@ -46,6 +46,61 @@ def tags_to_label_ids(tags: list[str | None]) -> list[int]:
     return [IGNORE_INDEX if t is None else LABEL2ID[t] for t in tags]
 
 
+def tags_to_spans(
+    text: str,
+    offsets: list[tuple[int, int]],
+    tags: list[str | None],
+    confidences: list[float] | None = None,
+) -> list[dict]:
+    """Chiều ngược lại của spans_to_iob2_tags: ghép nhãn B-/I- liên tiếp của model
+    (hoặc dữ liệu gold) thành span mức ký tự. Dùng khi suy luận NER thật (Layer 2),
+    không chỉ lúc chuẩn bị dữ liệu train.
+
+    confidences (nếu có, cùng độ dài offsets) là xác suất model cho token đó; span
+    lấy trung bình các token thuộc nó làm confidence.
+    """
+    spans: list[dict] = []
+    current: dict | None = None
+
+    def close_current() -> None:
+        if current is None:
+            return
+        # Token đầu một từ trong tokenizer SentencePiece (vd DeBERTa-v3) có offset
+        # bao gồm luôn khoảng trắng phía trước ("▁WAF" -> offset trùm cả dấu cách),
+        # nên phải cắt bớt whitespace ở 2 đầu span trước khi trả ra.
+        start, end = current["start"], current["end"]
+        while start < end and text[start].isspace():
+            start += 1
+        while end > start and text[end - 1].isspace():
+            end -= 1
+        if start < end:
+            spans.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "text": text[start:end],
+                    "type": current["type"],
+                    "confidence": (sum(current["confs"]) / len(current["confs"])) if current["confs"] else 1.0,
+                }
+            )
+
+    for i, ((start, end), tag) in enumerate(zip(offsets, tags)):
+        if tag is None or tag == "O":
+            close_current()
+            current = None
+            continue
+        prefix, _, entity_type = tag.partition("-")
+        if current is None or entity_type != current["type"] or prefix == "B":
+            close_current()
+            current = {"start": start, "end": end, "type": entity_type, "confs": []}
+        else:
+            current["end"] = end
+        if confidences is not None:
+            current["confs"].append(confidences[i])
+    close_current()
+    return spans
+
+
 def misaligned_spans(text: str, offsets: list[tuple[int, int]], spans: list[dict]) -> list[dict]:
     """Span mà ranh giới không trùng ranh giới token (vd span "503" nằm giữa token
     "503errors"): nhãn token khi đó bao trùm nhiều hơn span gốc."""
