@@ -11,7 +11,7 @@ sentencepiece
 protobuf
 torch
 seqeval
-openai
+sentence-transformers
 pysbd
 httpx
 pytest
